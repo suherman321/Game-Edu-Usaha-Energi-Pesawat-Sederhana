@@ -1,0 +1,1581 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Edukasi RPG 2D: Percakapan NPC & Open World Fisika</title>
+  <style>
+    /* ==========================================================================
+       BAGIAN 1: CSS STYLING (Retro RPG Open World & Responsif)
+       ========================================================================== */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      user-select: none;
+    }
+
+    body {
+      background: radial-gradient(circle at center, #1e293b 0%, #090d16 100%);
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      overflow-x: hidden;
+    }
+
+    .game-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85);
+      border-radius: 14px;
+      overflow: hidden;
+      border: 3px solid #334155;
+      background-color: #0b0f19;
+    }
+
+    /* Header Navigasi */
+    .game-header {
+      width: 100%;
+      background: #0f172a;
+      border-bottom: 2px solid #334155;
+      padding: 10px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .game-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: #f59e0b;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .zone-badge {
+      background: #2563eb;
+      color: #ffffff;
+      padding: 2px 10px;
+      border-radius: 6px;
+      font-size: 11.5px;
+      font-weight: 700;
+      margin-left: 6px;
+      transition: background 0.3s;
+    }
+
+    .controls-hint {
+      font-size: 12px;
+      color: #94a3b8;
+    }
+
+    .key-badge {
+      background: #1e293b;
+      border: 1px solid #475569;
+      color: #e2e8f0;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      font-size: 11px;
+    }
+
+    /* Kanvas Viewport 800x500 */
+    .canvas-viewport {
+      position: relative;
+      width: 800px;
+      height: 500px;
+      background: #000;
+      overflow: hidden;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 800px;
+      height: 500px;
+      image-rendering: pixelated;
+    }
+
+    /* HUD Pojok Kiri Atas */
+    .hud-overlay {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .hud-row {
+      display: flex;
+      gap: 10px;
+    }
+
+    .hud-card {
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(4px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      padding: 5px 12px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+
+    /* Teks Petunjuk Misi Progresif */
+    .mission-card {
+      background: rgba(15, 23, 42, 0.94);
+      backdrop-filter: blur(4px);
+      border: 1.5px solid #f59e0b;
+      border-radius: 8px;
+      padding: 6px 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fef08a;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+      max-width: 440px;
+    }
+
+    /* Toast Pesan Gate Terkunci */
+    .gate-toast {
+      position: absolute;
+      top: 70px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(225, 29, 72, 0.95);
+      color: #ffffff;
+      border: 1.5px solid #fda4af;
+      padding: 8px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 800;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.7);
+      z-index: 20;
+      display: none;
+      animation: shakeToast 0.3s ease-in-out;
+      pointer-events: none;
+    }
+
+    @keyframes shakeToast {
+      0%, 100% { transform: translate(-50%, 0); }
+      20% { transform: translate(-54%, 0); }
+      40% { transform: translate(-46%, 0); }
+      60% { transform: translate(-52%, 0); }
+      80% { transform: translate(-48%, 0); }
+    }
+
+    /* Balon Prompt Interaksi Melayang */
+    .interact-hint {
+      position: absolute;
+      background: #fbbf24;
+      color: #0f172a;
+      font-size: 11px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+      pointer-events: none;
+      display: none;
+      z-index: 15;
+      transform: translate(-50%, -100%);
+      white-space: nowrap;
+    }
+
+    .interact-hint::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 5px;
+      border-style: solid;
+      border-color: #fbbf24 transparent transparent transparent;
+    }
+
+    /* Dialog Materi Belajar (Papan Tulis) */
+    .material-dialog {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 720px;
+      max-height: 440px;
+      background: rgba(15, 23, 42, 0.97);
+      border: 2px solid #38bdf8;
+      border-radius: 12px;
+      padding: 20px 24px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.9);
+      z-index: 25;
+      display: none;
+      animation: zoomIn 0.2s ease-out;
+      overflow-y: auto;
+    }
+
+    @keyframes zoomIn {
+      from { opacity: 0; transform: translate(-50%, -46%) scale(0.96); }
+      to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+    }
+
+    .material-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 2px solid rgba(56, 189, 248, 0.3);
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+    }
+
+    .material-title {
+      font-size: 16.5px;
+      font-weight: 800;
+      color: #38bdf8;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .material-content {
+      font-size: 13.5px;
+      line-height: 1.6;
+      color: #e2e8f0;
+      margin-bottom: 16px;
+    }
+
+    .material-box-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 12px 0;
+    }
+
+    .formula-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+    }
+
+    .formula-title {
+      font-weight: 700;
+      color: #fbbf24;
+      font-size: 13px;
+      margin-bottom: 4px;
+    }
+
+    .formula-math {
+      font-family: monospace;
+      font-size: 15px;
+      font-weight: 700;
+      color: #34d399;
+      background: #0f172a;
+      padding: 4px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+
+    .btn-close-material {
+      background: #38bdf8;
+      color: #0f172a;
+      font-weight: 800;
+      font-size: 13.5px;
+      padding: 8px 20px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      float: right;
+      transition: background 0.15s, transform 0.1s;
+    }
+
+    .btn-close-material:hover {
+      background: #7dd3fc;
+      transform: translateY(-1px);
+    }
+
+    /* Kotak Dialog Utama (Sistem Percakapan & Soal Kuis) */
+    .dialog-container {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 760px;
+      background: rgba(15, 23, 42, 0.97);
+      border: 2px solid #f59e0b;
+      border-radius: 12px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
+      z-index: 20;
+      display: none;
+      animation: slideUp 0.25s ease-out;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translate(-50%, 15px); }
+      to { opacity: 1; transform: translate(-50%, 0); }
+    }
+
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      border-bottom: 1px solid rgba(245, 158, 11, 0.3);
+      padding-bottom: 6px;
+    }
+
+    .npc-name {
+      font-size: 15px;
+      font-weight: 800;
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .q-step-badge {
+      background: #3b82f6;
+      color: #ffffff;
+      font-size: 11.5px;
+      font-weight: 800;
+      padding: 2px 10px;
+      border-radius: 10px;
+      box-shadow: 0 2px 6px rgba(59, 130, 246, 0.4);
+    }
+
+    .dialog-body-text {
+      font-size: 14.5px;
+      line-height: 1.5;
+      color: #ffffff;
+      margin-bottom: 12px;
+      font-weight: 500;
+      min-height: 48px;
+    }
+
+    /* Container Pilihan Jawaban A-D */
+    .answers-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .btn-answer {
+      background: #1e293b;
+      border: 1.5px solid #475569;
+      color: #f1f5f9;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-answer:hover {
+      background: #334155;
+      border-color: #f59e0b;
+      transform: translateY(-1px);
+    }
+
+    .btn-answer .opt-letter {
+      background: rgba(255, 255, 255, 0.1);
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      font-size: 11.5px;
+      color: #fbbf24;
+      font-weight: 700;
+    }
+
+    .feedback-box {
+      display: none;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.4;
+      margin-top: 6px;
+    }
+
+    .feedback-correct {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1.5px solid #10b981;
+      color: #a7f3d0;
+    }
+
+    .feedback-wrong {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1.5px solid #ef4444;
+      color: #fca5a5;
+    }
+
+    .btn-action {
+      background: #f59e0b;
+      color: #0f172a;
+      border: none;
+      padding: 7px 16px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      float: right;
+      margin-top: 6px;
+      transition: background 0.15s;
+    }
+
+    .btn-action:hover {
+      background: #fbbf24;
+    }
+
+    /* Indicator Tekan Spasi untuk mode percakapan */
+    .space-hint-footer {
+      font-size: 11.5px;
+      color: #fbbf24;
+      font-weight: 700;
+      text-align: right;
+      margin-top: 8px;
+      cursor: pointer;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    /* Modal End / Tamat / Game Over */
+    .game-modal {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(11, 15, 25, 0.93);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 35;
+      text-align: center;
+      padding: 24px;
+    }
+
+    .modal-title {
+      font-size: 26px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .modal-desc {
+      font-size: 15px;
+      color: #94a3b8;
+      max-width: 520px;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+
+    .modal-score {
+      font-size: 19px;
+      font-weight: 700;
+      color: #fbbf24;
+      margin-bottom: 20px;
+    }
+
+    .btn-modal-primary {
+      background: #f59e0b;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 14.5px;
+      padding: 10px 24px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+      transition: all 0.15s ease;
+    }
+
+    .btn-modal-primary:hover {
+      background: #fbbf24;
+      transform: scale(1.04);
+    }
+
+    .footer-help {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #64748b;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="game-wrapper">
+    <!-- Header -->
+    <div class="game-header">
+      <div class="game-title">
+        <span>🗺️</span> Open World Fisika RPG (Mode Percakapan NPC)
+        <span id="zoneBadge" class="zone-badge">Zona 1: Konstruksi</span>
+      </div>
+      <div class="controls-hint">
+        Gerak: <span class="key-badge">WASD</span> / <span class="key-badge">Panah</span> &bull; 
+        Lanjut/Bicara: <span class="key-badge">Spasi</span> / <span class="key-badge">Enter</span>
+      </div>
+    </div>
+
+    <!-- Area Kanvas 800x500 -->
+    <div class="canvas-viewport">
+      <canvas id="gameCanvas" width="800" height="500"></canvas>
+
+      <!-- HUD Pojok Kiri Atas -->
+      <div class="hud-overlay">
+        <div class="hud-row">
+          <div class="hud-card">
+            <span>❤️</span>
+            <span>Nyawa: <span id="livesDisplay">3</span></span>
+          </div>
+          <div class="hud-card">
+            <span>⭐</span>
+            <span>Skor: <span id="scoreDisplay">0</span></span>
+          </div>
+        </div>
+
+        <!-- Teks Petunjuk Misi Progresif -->
+        <div class="mission-card" id="missionTracker">
+          <span style="font-size: 15px;">🧭</span>
+          <span id="missionText">Tugas: Pelajari Materi di Papan Tulis Zona Konstruksi</span>
+        </div>
+      </div>
+
+      <!-- Toast Peringatan Gate Terkunci -->
+      <div id="gateToast" class="gate-toast">
+        🔒 Gate Terkunci! Selesaikan tugas di area ini dulu!
+      </div>
+
+      <!-- Balon Prompt Interaksi -->
+      <div id="interactPrompt" class="interact-hint">[Spasi] Interaksi</div>
+
+      <!-- Dialog Materi Papan Tulis -->
+      <div id="materialDialog" class="material-dialog">
+        <div class="material-header">
+          <div id="materialTitle" class="material-title">
+            <span>📖</span> Materi Ringkas
+          </div>
+          <span style="font-size: 12px; color: #94a3b8;">Ruang Belajar Zone</span>
+        </div>
+        <div id="materialBody" class="material-content"></div>
+        <button id="btnCloseMaterial" class="btn-close-material">Tutup Materi (Lanjut Eksplorasi)</button>
+      </div>
+
+      <!-- Kotak Dialog Utama (Percakapan Bertahap -> Soal Kuis 3 Soal) -->
+      <div id="dialogBox" class="dialog-container">
+        <div class="dialog-header">
+          <div class="npc-name">
+            <span>👷‍♂️</span> <span id="dialogNpcName">Mandor Proyek</span>
+          </div>
+          <div id="qStepBadge" class="q-step-badge">Mode Percakapan</div>
+        </div>
+
+        <div id="dialogBodyText" class="dialog-body-text"></div>
+        <div id="answersContainer" class="answers-grid"></div>
+
+        <!-- Footer Hint Mode Percakapan (Spesifikasi 3) -->
+        <div id="spaceHintFooter" class="space-hint-footer" onclick="handleSpaceAction()">
+          💬 Lanjut [Tekan Spasi atau Klik di Sini] &rarr;
+        </div>
+
+        <!-- Feedback Jawaban Kuis -->
+        <div id="feedbackBox" class="feedback-box">
+          <div id="feedbackText"></div>
+          <button id="btnContinue" class="btn-action">Lanjut Soal Berikutnya &rarr;</button>
+        </div>
+      </div>
+
+      <!-- Modal Game Over / Tamat -->
+      <div id="gameModal" class="game-modal">
+        <div id="modalTitle" class="modal-title" style="color: #10b981;">Tamat!</div>
+        <div id="modalDesc" class="modal-desc"></div>
+        <div id="modalScore" class="modal-score">Total Skor: 0</div>
+        <button id="btnModalAction" class="btn-modal-primary">Main Lagi</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-help">
+    Open World RPG 2D &bull; Percakapan Bertahap NPC &bull; 3 Soal Kuis (Hitungan, Analisis, Penerapan) &bull; Single-File HTML Murni.
+  </div>
+
+  <script>
+    /* ==========================================================================
+       LOGIKA GAME & DATA DIALOG PERCAKAPAN BERTAHAP + 3 SOAL PER NPC
+       ========================================================================== */
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // DOM UI
+    const livesDisplay = document.getElementById('livesDisplay');
+    const scoreDisplay = document.getElementById('scoreDisplay');
+    const zoneBadge = document.getElementById('zoneBadge');
+    const missionText = document.getElementById('missionText');
+    const interactPrompt = document.getElementById('interactPrompt');
+    const gateToast = document.getElementById('gateToast');
+
+    const materialDialog = document.getElementById('materialDialog');
+    const materialTitle = document.getElementById('materialTitle');
+    const materialBody = document.getElementById('materialBody');
+    const btnCloseMaterial = document.getElementById('btnCloseMaterial');
+
+    const dialogBox = document.getElementById('dialogBox');
+    const dialogNpcName = document.getElementById('dialogNpcName');
+    const qStepBadge = document.getElementById('qStepBadge');
+    const dialogBodyText = document.getElementById('dialogBodyText');
+    const answersContainer = document.getElementById('answersContainer');
+    const spaceHintFooter = document.getElementById('spaceHintFooter');
+    const feedbackBox = document.getElementById('feedbackBox');
+    const feedbackText = document.getElementById('feedbackText');
+    const btnContinue = document.getElementById('btnContinue');
+
+    const gameModal = document.getElementById('gameModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalDesc = document.getElementById('modalDesc');
+    const modalScore = document.getElementById('modalScore');
+    const btnModalAction = document.getElementById('btnModalAction');
+
+    const WORLD = { width: 2400, height: 600, zone1MaxX: 800, zone2MaxX: 1600 };
+    const camera = { x: 0, y: 0, width: 800, height: 500 };
+
+    const STORAGE_KEY = "rpg_open_world_score_v4";
+    let score = localStorage.getItem(STORAGE_KEY) ? parseInt(localStorage.getItem(STORAGE_KEY), 10) : 0;
+    let lives = 3;
+
+    // Status baca materi & penyelesaian NPC
+    let z1BoardRead = false, z1Npc1Done = false, z1Npc2Done = false;
+    let z2BoardRead = false, z2Npc1Done = false, z2Npc2Done = false;
+    let z3BoardRead = false, z3Npc1Done = false, z3Npc2Done = false;
+
+    // Dialog State Machine: 'intro' (Mode Percakapan) vs 'quiz' (Mode Kuis)
+    let isGamePaused = false;
+    let isMaterialOpen = false;
+    let isDialogOpen = false;
+    let activeZoneNum = 1;
+    let activeNpcNum = 1;
+    
+    let dialogPhase = 'intro'; // 'intro' atau 'quiz'
+    let introLineIndex = 0;   // Index kalimat sapaan (0 atau 1)
+    let currentQStep = 0;     // Index soal kuis (0, 1, 2)
+    let isAnswerSubmitted = false;
+    let toastTimeout = null;
+
+    const player = {
+      x: 180, y: 300, radius: 16, speed: 3.8, direction: 'down',
+      isMoving: false, stepCount: 0, colorShirt: '#2563eb', colorSkin: '#fed7aa', colorCap: '#dc2626'
+    };
+
+    /* ==========================================================================
+       DATA DIALOG SAPAAN + 3 SOAL PER NPC (SESUAI DENGAN INSTRUKSI SPESIFIK)
+       ========================================================================== */
+    const ZONES = {
+      1: {
+        name: "Zona 1: Konstruksi",
+        floorColor: "#334155",
+        board: { x: 100, y: 120, w: 80, h: 54 },
+        npc1: {
+          x: 420, y: 200, name: "Mandor Proyek", colorVest: "#f97316",
+          // SPESIFIKASI 2: Dialog Sapaan Penyemangat
+          introLines: [
+            "Halo Teknisi Muda! Selamat datang di proyek konstruksi Kota Mekanika.",
+            "Kami butuh bantuanmu. Ada beberapa perhitungan yang harus diselesaikan. Siap?"
+          ],
+          questions: [
+            {
+              typeLabel: "Hitungan",
+              question: "Pekerja mendorong gerobak dengan gaya 200 N sejauh 5 meter. Berapa usaha yang dilakukan?",
+              options: ["40 Joule", "1000 Joule", "200 Joule", "1000 Watt"],
+              correctIndex: 1,
+              explanation: "Usaha W = F × s = 200 N × 5 m = 1000 Joule (J)."
+            },
+            {
+              typeLabel: "Analisis",
+              question: "Seorang pekerja membawa ember berisi air sambil berjalan lurus ke depan. Mengapa usaha pada ember bernilai nol?",
+              options: [
+                "Karena gaya gravitasi terlalu kecil",
+                "Karena arah gaya tegak lurus dengan perpindahan",
+                "Karena ember sangat ringan",
+                "Karena perpindahannya sangat jauh"
+              ],
+              correctIndex: 1,
+              explanation: "Karena arah gaya angkat (ke atas) tegak lurus (90°) dengan arah perpindahan (ke depan), cos 90° = 0 sehingga Usaha = 0."
+            },
+            {
+              typeLabel: "Penerapan",
+              question: "Aktivitas manakah yang termasuk melakukan usaha dalam fisika?",
+              options: [
+                "Menahan beban berat tanpa bergerak",
+                "Mendorong dinding beton yang tidak bergeser",
+                "Mengangkat balok kayu ke atas meja",
+                "Memikirkan rumus fisika saat duduk"
+              ],
+              correctIndex: 2,
+              explanation: "Mengangkat balok ke atas meja menghasilkan gaya angkat dan perpindahan posisi balok ke atas (W = F × s)."
+            }
+          ]
+        },
+        npc2: {
+          x: 680, y: 420, name: "Mesin Derek (Operator Crane)", colorVest: "#a855f7",
+          introLines: [
+            "Wah, kamu sudah sampai sini! Mesin derek ini butuh perhitungan daya yang tepat.",
+            "Ayo bantu saya memastikan mesin ini bekerja dengan efisien!"
+          ],
+          questions: [
+            {
+              typeLabel: "Hitungan",
+              question: "Mesin derek melakukan usaha 6000 Joule dalam waktu 10 detik. Berapa daya mesin tersebut?",
+              options: ["600 Watt", "600 Joule", "60.000 Watt", "60 Watt"],
+              correctIndex: 0,
+              explanation: "Daya P = W / t = 6000 J / 10 s = 600 Watt (W)."
+            },
+            {
+              typeLabel: "Analisis",
+              question: "Pekerja A memindahkan 10 sak semen dalam 5 menit, Pekerja B dalam 10 menit. Siapa yang memiliki daya lebih besar?",
+              options: ["Pekerja A", "Pekerja B", "Pekerja A dan B sama besar", "Tidak dapat ditentukan"],
+              correctIndex: 0,
+              explanation: "Pekerja A melakukan usaha yang sama dalam waktu t lebih singkat, sehingga Dayanya (P = W/t) lebih besar."
+            },
+            {
+              typeLabel: "Penerapan",
+              question: "Apa satuan Internasional (SI) untuk Daya?",
+              options: ["Joule", "Newton", "Watt", "Pascal"],
+              correctIndex: 2,
+              explanation: "Satuan SI untuk Daya adalah Watt (W), dinamai menurut ilmuwan James Watt (1 Watt = 1 Joule/detik)."
+            }
+          ]
+        },
+        material: {
+          title: "Materi Zona 1: Usaha & Daya",
+          html: `
+            <p><strong>Area Konstruksi (Lantai Abu-abu)</strong></p>
+            <div class="material-box-grid">
+              <div class="formula-card">
+                <div class="formula-title">1. Usaha (Work, W)</div>
+                <div class="formula-math">W = F × s</div>
+                <p>Gaya F (Newton) memindahkan benda s (meter). Jika tegak lurus/tidak berpindah, W = 0.</p>
+              </div>
+              <div class="formula-card">
+                <div class="formula-title">2. Daya (Power, P)</div>
+                <div class="formula-math">P = W / t</div>
+                <p>Kelajuan usaha per satuan waktu t (detik). Satuan: Watt (W).</p>
+              </div>
+            </div>
+            <p>💡 <em>Dengarkan percakapan Mandor 1 lalu jawab 3 Soal di tiap pos untuk membuka Gate 1!</em></p>
+          `
+        }
+      },
+      2: {
+        name: "Zona 2: Pembangkit Listrik",
+        floorColor: "#064e3b",
+        board: { x: 900, y: 120, w: 80, h: 54 },
+        npc1: {
+          x: 1220, y: 200, name: "Teknisi Turbin", colorVest: "#10b981",
+          introLines: [
+            "Syukurlah kamu datang! Pasokan listrik kota terancam mati.",
+            "Kita harus menghitung energi potensial air terjun ini agar turbin bisa menyala kembali."
+          ],
+          questions: [
+            {
+              typeLabel: "Hitungan",
+              question: "Air terjun setinggi 10 m, massa 500 kg (g = 10 m/s²). Berapa energi potensialnya?",
+              options: ["50.000 Joule", "5.000 Joule", "500 Joule", "50.000 Watt"],
+              correctIndex: 0,
+              explanation: "Energi Potensial Ep = m × g × h = 500 kg × 10 m/s² × 10 m = 50.000 Joule (J)."
+            },
+            {
+              typeLabel: "Analisis",
+              question: "Dua bola identik di rak. Bola A di rak atas, Bola B di rak tengah. Mana yang energi potensialnya lebih besar?",
+              options: ["Bola A", "Bola B", "Kedua bola sama besar", "Kedua bola tidak punya energi potensial"],
+              correctIndex: 0,
+              explanation: "Energi potensial sebanding dengan ketinggian (Ep = m·g·h). Bola A berada di rak yang lebih tinggi."
+            },
+            {
+              typeLabel: "Penerapan",
+              question: "Faktor apa saja yang mempengaruhi besarnya energi potensial?",
+              options: [
+                "Massa, gravitasi, dan ketinggian",
+                "Kecepatan, waktu, dan massa",
+                "Gaya, perpindahan, dan bentuk",
+                "Volume, warna, dan suhu"
+              ],
+              correctIndex: 0,
+              explanation: "Berdasarkan rumus Ep = m × g × h, faktor utamanya adalah massa (m), gravitasi (g), dan tinggi (h)."
+            }
+          ]
+        },
+        npc2: {
+          x: 1480, y: 420, name: "Teknisi Panel Surya", colorVest: "#06b6d4",
+          introLines: [
+            "Panel surya ini butuh pengecekan energi kinetik dan mekanik.",
+            "Dengan bantuanmu, kita bisa pastikan energi kota tersimpan dengan aman. Siap?"
+          ],
+          questions: [
+            {
+              typeLabel: "Hitungan",
+              question: "Mobil mainan 2 kg bergerak dengan kecepatan 4 m/s. Berapa energi kinetiknya?",
+              options: ["16 Joule", "32 Joule", "8 Joule", "16 Watt"],
+              correctIndex: 0,
+              explanation: "Energi Kinetik Ek = ½ × m × v² = ½ × 2 kg × (4)² = 16 Joule (J)."
+            },
+            {
+              typeLabel: "Analisis",
+              question: "Jika kecepatan kendaraan dinaikkan 2 kali lipat, bagaimana pengaruhnya terhadap energi kinetiknya?",
+              options: [
+                "Menjadi 2 kali lipat",
+                "Menjadi 4 kali lipat",
+                "Menjadi setengahnya",
+                "Tidak mengalami perubahan"
+              ],
+              correctIndex: 1,
+              explanation: "Karena Ek berbanding lurus dengan v² (kuadrat kecepatan), maka (2)² = 4 kali lipat semula."
+            },
+            {
+              typeLabel: "Penerapan",
+              question: "Mengapa energi kinetik berbahaya dalam kecelakaan lalu lintas?",
+              options: [
+                "Karena semakin besar kecepatan, energi kinetik melonjak drastis sehingga gaya benturannya lebih besar",
+                "Karena energi kinetik membuat ban mobil aus",
+                "Karena energi kinetik menyebabkan mesin cepat panas",
+                "Karena energi kinetik membuat mobil berubah warna"
+              ],
+              correctIndex: 0,
+              explanation: "Lonjakan Ek secara kuadratis membutuhkan usaha pengereman dan penyerapan gaya benturan yang sangat besar saat tumbukan."
+            }
+          ]
+        },
+        material: {
+          title: "Materi Zona 2: Energi Mekanik",
+          html: `
+            <p><strong>Area Pembangkit Listrik (Lantai Hijau Tua)</strong></p>
+            <div class="material-box-grid">
+              <div class="formula-card">
+                <div class="formula-title">1. Energi Potensial (Ep)</div>
+                <div class="formula-math">Ep = m × g × h</div>
+                <p>Energi simpanan ketinggian h (meter). Satuan: Joule.</p>
+              </div>
+              <div class="formula-card">
+                <div class="formula-title">2. Energi Kinetik (Ek)</div>
+                <div class="formula-math">Ek = ½ × m × v²</div>
+                <p>Energi gerak benda berkecepatan v (m/s). Satuan: Joule.</p>
+              </div>
+            </div>
+            <p>💡 <em>Dengarkan instruksi Teknisi Turbin lalu selesaikan kuis untuk membuka Gate 2!</em></p>
+          `
+        }
+      },
+      3: {
+        name: "Zona 3: Pelabuhan",
+        floorColor: "#1e3a8a",
+        board: { x: 1700, y: 120, w: 80, h: 54 },
+        npc1: {
+          x: 2020, y: 200, name: "Kepala Pelabuhan", colorVest: "#f43f5e",
+          introLines: [
+            "Akhirnya sampai juga! Pelabuhan kita sedang kacau.",
+            "Peti-peti kemas ini harus dipindahkan. Kita butuh perhitungan pesawat sederhana yang tepat!"
+          ],
+          questions: [
+            {
+              typeLabel: "Hitungan",
+              question: "Peti 1000 N dinaikkan ke truk setinggi 1 m menggunakan papan sepanjang 4 m. Berapa gaya dorongnya?",
+              options: ["250 Newton", "1000 Newton", "4000 Newton", "250 Joule"],
+              correctIndex: 0,
+              explanation: "Keuntungan Mekanis KM = s / h = 4 m / 1 m = 4. Maka Gaya F = w / KM = 1000 N / 4 = 250 Newton (N)."
+            },
+            {
+              typeLabel: "Analisis",
+              question: "Semakin curam sebuah bidang miring, bagaimana pengaruhnya terhadap gaya kuasa?",
+              options: [
+                "Gaya kuasa makin kecil",
+                "Gaya kuasa makin besar",
+                "Gaya kuasa tetap sama",
+                "Tidak memerlukan gaya kuasa"
+              ],
+              correctIndex: 1,
+              explanation: "Makin curam bidang miring, panjang s mendekati h (KM makin kecil menuju 1), sehingga gaya dorong F yang diperlukan makin besar."
+            },
+            {
+              typeLabel: "Penerapan",
+              question: "Sebutkan contoh alat di pelabuhan yang menggunakan prinsip bidang miring!",
+              options: [
+                "Papan jalan ke kapal / tanjakan (rampway)",
+                "Rantai jangkar kapal",
+                "Setir kapal palka",
+                "Pelampung penyelamat"
+              ],
+              correctIndex: 0,
+              explanation: "Papan tanjakan (ramp way/gangway) menerapkan prinsip bidang miring untuk memudahkan memindahkan penumpang/barang ke atas kapal."
+            }
+          ]
+        },
+        npc2: {
+          x: 2280, y: 420, name: "Operator Katrol", colorVest: "#eab308",
+          introLines: [
+            "Kamu sudah menyelesaikan bagian tersulit! Sekarang tinggal katrol ini.",
+            "Ayo kita pastikan peti terakhir bisa diangkat dengan aman!"
+          ],
+          questions: [
+            {
+              typeLabel: "Hitungan",
+              question: "Untuk mengangkat peti 500 N, digunakan katrol bergerak. Berapa gaya kuasa minimumnya?",
+              options: ["250 Newton", "500 Newton", "1000 Newton", "250 Watt"],
+              correctIndex: 0,
+              explanation: "Katrol bergerak memiliki Keuntungan Mekanis KM = 2. Maka Gaya F = w / KM = 500 N / 2 = 250 Newton (N)."
+            },
+            {
+              typeLabel: "Analisis",
+              question: "Apa perbedaan utama antara katrol tetap dan katrol bergerak dalam hal keuntungan mekanis?",
+              options: [
+                "Katrol tetap KM=1, katrol bergerak KM=2",
+                "Katrol tetap KM=2, katrol bergerak KM=1",
+                "Katrol tetap KM=0, katrol bergerak tak terhingga",
+                "Kedua katrol memiliki KM sama yaitu 1"
+              ],
+              correctIndex: 0,
+              explanation: "Katrol tetap hanya mengubah arah gaya (KM=1), sedangkan katrol bergerak membagi beban ke 2 tali penopang (KM=2)."
+            },
+            {
+              typeLabel: "Penerapan",
+              question: "Sebutkan satu contoh penggunaan katrol di kehidupan sehari-hari!",
+              options: [
+                "Kerekan tiang bendera atau sumur timba",
+                "Pisau pemotong kertas",
+                "Sapu pembersih lantai",
+                "Tang pencabut paku"
+              ],
+              correctIndex: 0,
+              explanation: "Kerekan tiang bendera dan sumur timba memanfaatkan katrol tetap untuk memudahkan memindahkan beban."
+            }
+          ]
+        },
+        material: {
+          title: "Materi Zona 3: Pesawat Sederhana",
+          html: `
+            <p><strong>Area Pelabuhan (Lantai Biru Tua)</strong></p>
+            <div class="material-box-grid">
+              <div class="formula-card">
+                <div class="formula-title">1. Tuas &amp; Katrol</div>
+                <div class="formula-math">KM = Lk / Lb = w / F</div>
+                <p>Katrol tetap KM = 1, Katrol bergerak KM = 2.</p>
+              </div>
+              <div class="formula-card">
+                <div class="formula-title">2. Bidang Miring</div>
+                <div class="formula-math">KM = s / h = w / F</div>
+                <p>s = panjang bidang miring, h = tinggi tempat.</p>
+              </div>
+            </div>
+            <p>💡 <em>Simak pesan Kepala Pelabuhan dan Operator Katrol untuk menamatkan Game!</em></p>
+          `
+        }
+      }
+    };
+
+    // Web Audio API
+    let audioCtx = null;
+    function playSound(type) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        const now = audioCtx.currentTime;
+
+        if (type === 'correct') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(523.25, now);
+          osc.frequency.setValueAtTime(659.25, now + 0.08);
+          osc.frequency.setValueAtTime(783.99, now + 0.16);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+          osc.start(now);
+          osc.stop(now + 0.4);
+        } else if (type === 'wrong' || type === 'blocked') {
+          osc.type = 'sawtooth';
+          osc.frequency.setValueAtTime(220, now);
+          osc.frequency.linearRampToValueAtTime(110, now + 0.25);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else if (type === 'step') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(130, now);
+          gain.gain.setValueAtTime(0.03, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+          osc.start(now);
+          osc.stop(now + 0.04);
+        } else if (type === 'open') {
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.12);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        }
+      } catch (e) {}
+    }
+
+    function showGateToast(message) {
+      playSound('blocked');
+      gateToast.textContent = message;
+      gateToast.style.display = 'block';
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => { gateToast.style.display = 'none'; }, 2500);
+    }
+
+    function updateMissionTracker() {
+      let currentZone = 1;
+      if (player.x >= WORLD.zone2MaxX) currentZone = 3;
+      else if (player.x >= WORLD.zone1MaxX) currentZone = 2;
+
+      zoneBadge.textContent = ZONES[currentZone].name;
+      livesDisplay.textContent = lives;
+      scoreDisplay.textContent = score;
+
+      if (currentZone === 1) {
+        zoneBadge.style.background = "#475569";
+        if (!z1BoardRead) missionText.textContent = "Tugas: Pelajari Papan Tulis di Zona Konstruksi (Kiri)";
+        else if (!z1Npc1Done) missionText.textContent = "Tugas: Temui Mandor Proyek (Dengarkan percakapan & jawab kuis)";
+        else if (!z1Npc2Done) missionText.textContent = "Tugas: Temui Mesin Derek (Dengarkan percakapan untuk Buka Gate 1)";
+        else missionText.textContent = "Tugas: Gate 1 Terbuka! Berjalanlah ke Kanan menuju Zona 2 →";
+      } else if (currentZone === 2) {
+        zoneBadge.style.background = "#059669";
+        if (!z2BoardRead) missionText.textContent = "Tugas: Pelajari Papan Tulis di Zona Pembangkit Listrik";
+        else if (!z2Npc1Done) missionText.textContent = "Tugas: Temui Teknisi Turbin (Dengarkan percakapan & jawab kuis)";
+        else if (!z2Npc2Done) missionText.textContent = "Tugas: Temui Teknisi Panel Surya (Selesaikan kuis untuk Buka Gate 2)";
+        else missionText.textContent = "Tugas: Gate 2 Terbuka! Berjalanlah ke Kanan menuju Zona 3 →";
+      } else {
+        zoneBadge.style.background = "#2563eb";
+        if (!z3BoardRead) missionText.textContent = "Tugas: Pelajari Papan Tulis di Zona Pelabuhan";
+        else if (!z3Npc1Done) missionText.textContent = "Tugas: Temui Kepala Pelabuhan (Dengarkan percakapan & jawab kuis)";
+        else if (!z3Npc2Done) missionText.textContent = "Tugas: Temui Operator Katrol (Bicara & jawab kuis terakhir)";
+        else missionText.textContent = "Tugas: SELAMAT! Seluruh Misi Open World Berhasil Tamat!";
+      }
+    }
+
+    const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+
+    window.addEventListener('keydown', (e) => {
+      if (['Space', 'Enter', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) e.preventDefault();
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.ArrowUp = true;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.ArrowDown = true;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.ArrowLeft = true;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.ArrowRight = true;
+
+      // SPASI ATAU ENTER UNTUK INTERAKSI DAN MELANJUTKAN DIALOG PERCAKAPAN
+      if (e.code === 'Space' || e.code === 'Enter') handleSpaceAction();
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'KeyW' || e.code === 'ArrowUp') keys.ArrowUp = false;
+      if (e.code === 'KeyS' || e.code === 'ArrowDown') keys.ArrowDown = false;
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.ArrowLeft = false;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.ArrowRight = false;
+    });
+
+    function getDistance(x1, y1, x2, y2) {
+      const dx = x1 - x2; const dy = y1 - y2;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    /* ==========================================================================
+       SPESIFIKASI 1 & 3: MANAJEMEN PENEKANAN TOMBOL SPASI DENGAN MURNI
+       ========================================================================== */
+    function handleSpaceAction() {
+      // 1. Jika dialog materi papan tulis sedang terbuka, tutup
+      if (isMaterialOpen) {
+        closeMaterialDialog();
+        return;
+      }
+
+      // 2. Jika dialog utama NPC sedang terbuka
+      if (isDialogOpen) {
+        if (dialogPhase === 'intro') {
+          // Mode Percakapan Sapaan Bertahap
+          const npcData = activeNpcNum === 1 ? ZONES[activeZoneNum].npc1 : ZONES[activeZoneNum].npc2;
+          introLineIndex++;
+
+          if (introLineIndex < npcData.introLines.length) {
+            // Tampilkan kalimat dialog sapaan berikutnya
+            playSound('open');
+            dialogBodyText.textContent = `"${npcData.introLines[introLineIndex]}"`;
+          } else {
+            // Selesai percakapan intro -> Transisi mulus ke Mode Soal Kuis!
+            dialogPhase = 'quiz';
+            currentQStep = 0;
+            renderCurrentQuizQuestion();
+          }
+        } else if (dialogPhase === 'quiz' && isAnswerSubmitted) {
+          // Mode Kuis setelah jawaban dikirim -> Lanjut soal berikutnya
+          btnContinue.click();
+        }
+        return;
+      }
+
+      // 3. Jika sedang menjelajah peta secara bebas
+      if (!isGamePaused) {
+        for (let z = 1; z <= 3; z++) {
+          const zd = ZONES[z];
+          if (getDistance(player.x, player.y, zd.board.x + zd.board.w / 2, zd.board.y + zd.board.h / 2) < 75) {
+            openMaterialDialog(z);
+            return;
+          }
+          if (getDistance(player.x, player.y, zd.npc1.x, zd.npc1.y) < 75) {
+            const isDone = z === 1 ? z1Npc1Done : z === 2 ? z2Npc1Done : z3Npc1Done;
+            if (!isDone) openNpcConversation(z, 1);
+            return;
+          }
+          const npc1Done = z === 1 ? z1Npc1Done : z === 2 ? z2Npc1Done : z3Npc1Done;
+          if (npc1Done && getDistance(player.x, player.y, zd.npc2.x, zd.npc2.y) < 75) {
+            const isDone = z === 1 ? z1Npc2Done : z === 2 ? z2Npc2Done : z3Npc2Done;
+            if (!isDone) openNpcConversation(z, 2);
+            return;
+          }
+        }
+      }
+    }
+
+    function openMaterialDialog(zoneNum) {
+      isGamePaused = true; isMaterialOpen = true; playSound('open');
+      const zd = ZONES[zoneNum];
+      materialTitle.innerHTML = `<span>📖</span> ${zd.material.title}`;
+      materialBody.innerHTML = zd.material.html;
+      materialDialog.style.display = 'block';
+      interactPrompt.style.display = 'none';
+
+      if (zoneNum === 1) z1BoardRead = true;
+      else if (zoneNum === 2) z2BoardRead = true;
+      else if (zoneNum === 3) z3BoardRead = true;
+
+      updateMissionTracker();
+    }
+
+    function closeMaterialDialog() {
+      materialDialog.style.display = 'none';
+      isMaterialOpen = false; isGamePaused = false;
+      updateMissionTracker();
+    }
+    btnCloseMaterial.onclick = closeMaterialDialog;
+
+    /* ==========================================================================
+       SPESIFIKASI 1: BUKA KOTAK DIALOG DENGAN MODE PERCAKAPAN BERTAHAP
+       ========================================================================== */
+    function openNpcConversation(zoneNum, npcNum) {
+      isGamePaused = true;
+      isDialogOpen = true;
+      activeZoneNum = zoneNum;
+      activeNpcNum = npcNum;
+
+      // Set ke Mode Dialog Intro Sapaan
+      dialogPhase = 'intro';
+      introLineIndex = 0;
+      isAnswerSubmitted = false;
+      playSound('open');
+
+      const npcData = npcNum === 1 ? ZONES[zoneNum].npc1 : ZONES[zoneNum].npc2;
+
+      dialogNpcName.textContent = npcData.name;
+      qStepBadge.textContent = "💬 Percakapan NPC";
+      qStepBadge.style.background = "#3b82f6";
+      dialogBodyText.textContent = `"${npcData.introLines[0]}"`;
+
+      // Sembunyikan container soal A-D & feedback
+      answersContainer.style.display = 'none';
+      feedbackBox.style.display = 'none';
+      spaceHintFooter.style.display = 'block';
+
+      dialogBox.style.display = 'block';
+      interactPrompt.style.display = 'none';
+    }
+
+    /* ==========================================================================
+       SPESIFIKASI 3 & 4: TRANSISI MULUS DARI PERCAKAPAN KE MODE SOAL KUIS
+       ========================================================================== */
+    function renderCurrentQuizQuestion() {
+      const npcData = activeNpcNum === 1 ? ZONES[activeZoneNum].npc1 : ZONES[activeZoneNum].npc2;
+      const qData = npcData.questions[currentQStep];
+
+      dialogNpcName.textContent = npcData.name;
+      // SPESIFIKASI 4: Indikator Soal X dari 3
+      qStepBadge.textContent = `Soal ${currentQStep + 1} dari 3 (${qData.typeLabel})`;
+      qStepBadge.style.background = "#059669";
+
+      dialogBodyText.textContent = qData.question;
+
+      answersContainer.style.display = 'grid';
+      answersContainer.innerHTML = '';
+      feedbackBox.style.display = 'none';
+      spaceHintFooter.style.display = 'none'; // Sembunyikan hint lanjut saat kuis
+      isAnswerSubmitted = false;
+
+      const letters = ['A', 'B', 'C', 'D'];
+      qData.options.forEach((optText, idx) => {
+        const btn = document.createElement('button');
+        btn.className = 'btn-answer';
+        btn.innerHTML = `<span class="opt-letter">${letters[idx]}</span> <span>${optText}</span>`;
+        btn.onclick = () => selectAnswer(idx, qData, npcData);
+        answersContainer.appendChild(btn);
+      });
+    }
+
+    function selectAnswer(selectedIndex, qData, npcData) {
+      if (isAnswerSubmitted) return;
+      isAnswerSubmitted = true;
+
+      const buttons = answersContainer.querySelectorAll('.btn-answer');
+      feedbackBox.style.display = 'block';
+
+      const isCorrect = selectedIndex === qData.correctIndex;
+      if (isCorrect) {
+        playSound('correct');
+        score += 50;
+        localStorage.setItem(STORAGE_KEY, score.toString());
+        scoreDisplay.textContent = score;
+
+        feedbackBox.className = 'feedback-box feedback-correct';
+        feedbackText.innerHTML = `<strong>Tepat Sekali! (+50 Skor)</strong><br>${qData.explanation}`;
+        buttons[selectedIndex].style.background = '#065f46';
+        buttons[selectedIndex].style.borderColor = '#10b981';
+      } else {
+        playSound('wrong');
+        lives -= 1;
+        livesDisplay.textContent = lives;
+
+        feedbackBox.className = 'feedback-box feedback-wrong';
+        feedbackText.innerHTML = `<strong>Kurang Tepat! (Nyawa -1)</strong><br>Jawaban Benar: <strong>${qData.options[qData.correctIndex]}</strong>.<br>${qData.explanation}`;
+        buttons[selectedIndex].style.background = '#7f1d1d';
+        buttons[selectedIndex].style.borderColor = '#ef4444';
+        buttons[qData.correctIndex].style.background = '#065f46';
+        buttons[qData.correctIndex].style.borderColor = '#10b981';
+      }
+
+      buttons.forEach(b => b.style.pointerEvents = 'none');
+
+      if (lives <= 0) {
+        btnContinue.textContent = "Lihat Hasil (Game Over)";
+      } else if (currentQStep < 2) {
+        btnContinue.textContent = `Lanjut ke Soal ${currentQStep + 2} dari 3 [Tekan Spasi] →`;
+      } else {
+        btnContinue.textContent = "Selesaikan Tantangan NPC Ini [Tekan Spasi]!";
+      }
+
+      updateMissionTracker();
+    }
+
+    btnContinue.onclick = () => {
+      if (lives <= 0) {
+        dialogBox.style.display = 'none';
+        isDialogOpen = false;
+        showModal(false, "Permainan Berakhir!", "Nyawamu telah habis. Pelajari kembali materi di Papan Tulis!");
+        return;
+      }
+
+      if (currentQStep < 2) {
+        // Transisi ke Soal berikutnya dalam mode kuis
+        currentQStep++;
+        renderCurrentQuizQuestion();
+      } else {
+        // Soal ke-3 selesai!
+        dialogBox.style.display = 'none';
+        isDialogOpen = false;
+
+        if (activeZoneNum === 1) {
+          if (activeNpcNum === 1) z1Npc1Done = true;
+          else z1Npc2Done = true;
+        } else if (activeZoneNum === 2) {
+          if (activeNpcNum === 1) z2Npc1Done = true;
+          else z2Npc2Done = true;
+        } else {
+          if (activeNpcNum === 1) z3Npc1Done = true;
+          else z3Npc2Done = true;
+        }
+
+        if (activeZoneNum === 3 && activeNpcNum === 2 && z3Npc2Done) {
+          showModal(true, "SELAMAT! OPEN WORLD FISIKA TAMAT!", "Luar biasa! Kamu berhasil mendengarkan semua motivasi NPC dan menjawab seluruh 18 Soal di 3 Zona!");
+        } else {
+          isGamePaused = false;
+          updateMissionTracker();
+        }
+      }
+    };
+
+    function showModal(isSuccess, title, desc) {
+      isGamePaused = true;
+      gameModal.style.display = 'flex';
+      modalTitle.textContent = title;
+      modalTitle.style.color = isSuccess ? '#10b981' : '#ef4444';
+      modalDesc.textContent = desc;
+      modalScore.textContent = `Total Skor Open World: ${score}`;
+      btnModalAction.textContent = "Main Lagi dari Awal";
+
+      btnModalAction.onclick = () => {
+        gameModal.style.display = 'none';
+        lives = 3; score = 0;
+        localStorage.setItem(STORAGE_KEY, "0");
+
+        z1BoardRead = false; z1Npc1Done = false; z1Npc2Done = false;
+        z2BoardRead = false; z2Npc1Done = false; z2Npc2Done = false;
+        z3BoardRead = false; z3Npc1Done = false; z3Npc2Done = false;
+
+        player.x = 180; player.y = 300;
+        isGamePaused = false;
+        updateMissionTracker();
+      };
+    }
+
+    function updateGame() {
+      if (isGamePaused) return;
+
+      let dx = 0; let dy = 0;
+      if (keys.ArrowUp) { dy -= 1; player.direction = 'up'; }
+      if (keys.ArrowDown) { dy += 1; player.direction = 'down'; }
+      if (keys.ArrowLeft) { dx -= 1; player.direction = 'left'; }
+      if (keys.ArrowRight) { dx += 1; player.direction = 'right'; }
+
+      if (dx !== 0 && dy !== 0) { dx *= 0.7071; dy *= 0.7071; }
+
+      if (dx !== 0 || dy !== 0) {
+        player.x += dx * player.speed;
+        player.y += dy * player.speed;
+        player.isMoving = true;
+        player.stepCount++;
+        if (player.stepCount % 18 === 0) playSound('step');
+      } else {
+        player.isMoving = false; player.stepCount = 0;
+      }
+
+      player.x = Math.max(player.radius + 10, Math.min(WORLD.width - player.radius - 10, player.x));
+      player.y = Math.max(player.radius + 35, Math.min(WORLD.height - player.radius - 18, player.y));
+
+      if (player.x > WORLD.zone1MaxX - 25 && player.x < WORLD.zone1MaxX + 25 && !z1Npc2Done) {
+        player.x = WORLD.zone1MaxX - 25;
+        showGateToast("🔒 Gate 1 Terkunci! Selesaikan tugas Mesin Derek di Zona 1 dulu!");
+      }
+
+      if (player.x > WORLD.zone2MaxX - 25 && player.x < WORLD.zone2MaxX + 25 && !z2Npc2Done) {
+        player.x = WORLD.zone2MaxX - 25;
+        showGateToast("🔒 Gate 2 Terkunci! Selesaikan tugas Panel Surya di Zona 2 dulu!");
+      }
+
+      camera.x = Math.max(0, Math.min(WORLD.width - camera.width, player.x - camera.width / 2));
+      camera.y = Math.max(0, Math.min(WORLD.height - camera.height, player.y - camera.height / 2));
+
+      let nearObj = false;
+      for (let z = 1; z <= 3; z++) {
+        const zd = ZONES[z];
+        const distB = getDistance(player.x, player.y, zd.board.x + zd.board.w / 2, zd.board.y + zd.board.h / 2);
+        const distN1 = getDistance(player.x, player.y, zd.npc1.x, zd.npc1.y);
+        const distN2 = getDistance(player.x, player.y, zd.npc2.x, zd.npc2.y);
+
+        const n1Done = z === 1 ? z1Npc1Done : z === 2 ? z2Npc1Done : z3Npc1Done;
+        const n2Done = z === 1 ? z1Npc2Done : z === 2 ? z2Npc2Done : z3Npc2Done;
+
+        if (distB < 75) {
+          nearObj = true;
+          interactPrompt.style.display = 'block';
+          interactPrompt.style.left = `${zd.board.x + zd.board.w / 2 - camera.x}px`;
+          interactPrompt.style.top = `${zd.board.y - 12 - camera.y}px`;
+          interactPrompt.textContent = "[Spasi] Baca Papan Tulis";
+          break;
+        } else if (distN1 < 75 && !n1Done) {
+          nearObj = true;
+          interactPrompt.style.display = 'block';
+          interactPrompt.style.left = `${zd.npc1.x - camera.x}px`;
+          interactPrompt.style.top = `${zd.npc1.y - 50 - camera.y}px`;
+          interactPrompt.textContent = `[Spasi] Bicara ${zd.npc1.name}`;
+          break;
+        } else if (distN2 < 75 && n1Done && !n2Done) {
+          nearObj = true;
+          interactPrompt.style.display = 'block';
+          interactPrompt.style.left = `${zd.npc2.x - camera.x}px`;
+          interactPrompt.style.top = `${zd.npc2.y - 50 - camera.y}px`;
+          interactPrompt.textContent = `[Spasi] Bicara ${zd.npc2.name}`;
+          break;
+        }
+      }
+
+      if (!nearObj) interactPrompt.style.display = 'none';
+      updateMissionTracker();
+    }
+
+    let animTimer = 0;
+    function drawOpenWorld() {
+      ctx.save();
+      ctx.translate(-camera.x, -camera.y);
+
+      // Floor
+      ctx.fillStyle = ZONES[1].floorColor; ctx.fillRect(0, 0, 800, WORLD.height);
+      ctx.fillStyle = ZONES[2].floorColor; ctx.fillRect(800, 0, 800, WORLD.height);
+      ctx.fillStyle = ZONES[3].floorColor; ctx.fillRect(1600, 0, 800, WORLD.height);
+
+      // Road
+      ctx.fillStyle = '#1e293b'; ctx.fillRect(50, 260, 2300, 80);
+      ctx.fillStyle = '#334155'; ctx.fillRect(54, 264, 2292, 72);
+      ctx.fillStyle = '#facc15';
+      for (let x = 70; x < 2320; x += 40) ctx.fillRect(x, 298, 20, 4);
+
+      // Gates
+      const drawGate = (gateX, isUnlocked, label) => {
+        ctx.fillStyle = '#0f172a'; ctx.fillRect(gateX - 10, 80, 20, 440);
+        ctx.fillStyle = isUnlocked ? '#10b981' : '#ef4444'; ctx.fillRect(gateX - 6, 84, 12, 432);
+        ctx.fillStyle = '#1e293b'; ctx.fillRect(gateX - 45, 90, 90, 30);
+        ctx.strokeStyle = isUnlocked ? '#10b981' : '#ef4444'; ctx.lineWidth = 2; ctx.strokeRect(gateX - 45, 90, 90, 30);
+
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(label, gateX, 108);
+
+        if (!isUnlocked) {
+          ctx.fillStyle = 'rgba(239, 68, 68, 0.45)'; ctx.fillRect(gateX - 8, 120, 16, 390);
+          ctx.fillStyle = '#dc2626';
+          for (let y = 140; y < 500; y += 30) ctx.fillRect(gateX - 12, y, 24, 6);
+          ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(gateX, 300, 16, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffffff'; ctx.font = '14px sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText('🔒', gateX, 300);
+        } else {
+          ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(gateX, 300, 14, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffffff'; ctx.font = 'bold 12px sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText('OPEN', gateX, 300);
+        }
+        ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+      };
+
+      drawGate(WORLD.zone1MaxX, z1Npc2Done, "GATE 1");
+      drawGate(WORLD.zone2MaxX, z2Npc2Done, "GATE 2");
+
+      // Boards
+      for (let z = 1; z <= 3; z++) {
+        const board = ZONES[z].board;
+        const isRead = z === 1 ? z1BoardRead : z === 2 ? z2BoardRead : z3BoardRead;
+
+        ctx.fillStyle = '#78350f'; ctx.fillRect(board.x - 3, board.y - 3, board.w + 6, board.h + 6);
+        ctx.fillStyle = '#064e3b'; ctx.fillRect(board.x, board.y, board.w, board.h);
+
+        ctx.fillStyle = '#34d399'; ctx.font = 'bold 9px sans-serif'; ctx.fillText(`RUANG BACA Z${z}`, board.x + 5, board.y + 14);
+        ctx.fillStyle = '#fef08a'; ctx.font = '8px monospace';
+        if (z === 1) { ctx.fillText("W = F × s", board.x + 5, board.y + 28); ctx.fillText("P = W / t", board.x + 5, board.y + 42); }
+        else if (z === 2) { ctx.fillText("Ep = m·g·h", board.x + 5, board.y + 28); ctx.fillText("Ek = ½·m·v²", board.x + 5, board.y + 42); }
+        else { ctx.fillText("KM = Lk/Lb", board.x + 5, board.y + 28); ctx.fillText("KM = s / h", board.x + 5, board.y + 42); }
+
+        const bounce = Math.sin(animTimer * 2.5 + z) * 4;
+        const ix = board.x + board.w / 2; const iy = board.y - 15 + bounce;
+
+        ctx.fillStyle = isRead ? '#0284c7' : '#eab308'; ctx.beginPath(); ctx.arc(ix, iy, 10, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(isRead ? '✔' : '📖', ix, iy);
+        ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+      }
+
+      // NPCs
+      const drawNpcEntity = (npcData, npcNum, isCompleted, isUnlocked) => {
+        const nx = npcData.x; const ny = npcData.y;
+        if (!isUnlocked) {
+          ctx.fillStyle = 'rgba(0,0,0,0.18)'; ctx.beginPath(); ctx.ellipse(nx, ny + 15, 14, 5, 0, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = 'rgba(30, 41, 59, 0.75)'; ctx.beginPath(); ctx.arc(nx, ny - 10, 16, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#64748b'; ctx.lineWidth = 1.5; ctx.stroke();
+          ctx.fillStyle = '#94a3b8'; ctx.font = '14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('🔒', nx, ny - 9); ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+          return;
+        }
+
+        ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(nx, ny + 17, 15, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#1e3a5f'; ctx.fillRect(nx - 8, ny + 7, 6, 10); ctx.fillRect(nx + 2, ny + 7, 6, 10);
+        ctx.fillStyle = '#451a03'; ctx.fillRect(nx - 9, ny + 15, 8, 4); ctx.fillRect(nx + 1, ny + 15, 8, 4);
+
+        ctx.fillStyle = npcData.colorVest || '#f97316';
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(nx - 11, ny - 5, 22, 16, 3) : ctx.rect(nx - 11, ny - 5, 22, 16); ctx.fill();
+        ctx.fillStyle = '#e2e8f0'; ctx.fillRect(nx - 9, ny - 2, 4, 12); ctx.fillRect(nx + 5, ny - 2, 4, 12);
+
+        ctx.fillStyle = '#fed7aa'; ctx.beginPath(); ctx.arc(nx, ny - 14, 11, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(nx - 4, ny - 14, 1.8, 0, Math.PI * 2); ctx.arc(nx + 4, ny - 14, 1.8, 0, Math.PI * 2); ctx.fill();
+
+        ctx.fillStyle = '#facc15'; ctx.beginPath(); ctx.arc(nx, ny - 18, 11, Math.PI, Math.PI * 2); ctx.fill(); ctx.fillRect(nx - 14, ny - 18, 28, 4);
+
+        const bounce = Math.sin(animTimer * 2.2 + npcNum) * 4;
+        const exX = nx; const exY = ny - 42 + bounce;
+
+        if (!isCompleted) {
+          ctx.fillStyle = '#0f172a'; ctx.beginPath(); ctx.arc(exX, exY + 5, 10, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#facc15'; ctx.lineWidth = 1.6; ctx.stroke();
+          ctx.fillStyle = '#facc15'; ctx.font = 'bold 14px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('!', exX, exY + 5);
+        } else {
+          ctx.fillStyle = '#10b981'; ctx.beginPath(); ctx.arc(exX, exY + 5, 10, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#ffffff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('✔', exX, exY + 5);
+        }
+        ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+      };
+
+      drawNpcEntity(ZONES[1].npc1, 1, z1Npc1Done, true);
+      drawNpcEntity(ZONES[1].npc2, 2, z1Npc2Done, z1Npc1Done);
+
+      drawNpcEntity(ZONES[2].npc1, 1, z2Npc1Done, true);
+      drawNpcEntity(ZONES[2].npc2, 2, z2Npc2Done, z2Npc1Done);
+
+      drawNpcEntity(ZONES[3].npc1, 1, z3Npc1Done, true);
+      drawNpcEntity(ZONES[3].npc2, 2, z3Npc2Done, z3Npc1Done);
+
+      // Player
+      const px = player.x; const py = player.y;
+      ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(px, py + 16, 14, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+      const legOffset = player.isMoving ? Math.sin(player.stepCount * 0.25) * 4 : 0;
+      ctx.fillStyle = '#1e293b'; ctx.fillRect(px - 7, py + 6 + legOffset, 5, 10); ctx.fillRect(px + 2, py + 6 - legOffset, 5, 10);
+      ctx.fillStyle = '#713f12'; ctx.fillRect(px - 8, py + 14 + legOffset, 7, 4); ctx.fillRect(px + 1, py + 14 - legOffset, 7, 4);
+
+      ctx.fillStyle = player.colorShirt;
+      ctx.beginPath(); ctx.roundRect ? ctx.roundRect(px - 9, py - 4, 18, 14, 3) : ctx.rect(px - 9, py - 4, 18, 14); ctx.fill();
+
+      ctx.fillStyle = player.colorSkin; ctx.beginPath(); ctx.arc(px, py - 12, 10, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = player.colorCap; ctx.beginPath(); ctx.arc(px, py - 16, 9.5, Math.PI, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#b91c1c';
+      if (player.direction === 'right') ctx.fillRect(px - 2, py - 16, 14, 3);
+      else if (player.direction === 'left') ctx.fillRect(px - 12, py - 16, 14, 3);
+      else ctx.fillRect(px - 10, py - 16, 20, 3);
+
+      ctx.fillStyle = '#0f172a';
+      if (player.direction === 'left') { ctx.beginPath(); ctx.arc(px - 6, py - 12, 1.8, 0, Math.PI * 2); ctx.fill(); }
+      else if (player.direction === 'right') { ctx.beginPath(); ctx.arc(px + 6, py - 12, 1.8, 0, Math.PI * 2); ctx.fill(); }
+      else if (player.direction === 'up') { ctx.fillStyle = '#451a03'; ctx.beginPath(); ctx.arc(px, py - 11, 8, 0, Math.PI); ctx.fill(); }
+      else { ctx.beginPath(); ctx.arc(px - 3.5, py - 12, 1.8, 0, Math.PI * 2); ctx.arc(px + 3.5, py - 12, 1.8, 0, Math.PI * 2); ctx.fill(); }
+
+      ctx.restore();
+    }
+
+    function gameLoop() {
+      animTimer += 0.04;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      updateGame();
+      drawOpenWorld();
+      requestAnimationFrame(gameLoop);
+    }
+
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>

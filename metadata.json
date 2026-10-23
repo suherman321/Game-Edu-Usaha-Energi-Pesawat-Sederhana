@@ -1,0 +1,6 @@
+{
+  "name": "RPG Edukasi Fisika Usaha & Daya",
+  "description": "Prototipe game edukasi RPG 2D HTML5 Canvas + JavaScript murni tentang konsep fisika Usaha dan Daya.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
